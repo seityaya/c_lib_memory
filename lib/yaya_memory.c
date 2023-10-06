@@ -6,44 +6,45 @@
 //Copyright © 2022-2023 Seityagiya Terlekchi. All rights reserved.
 
 #include "yaya_memory.h"
+#include "yaya_memory_stats.h"
 
-#if YAYA_MEMORY_STATS_USE
-#if YAYA_MEMORY_STATS_GLOBAL
-memory_stats_t mem_stats_lib_global = {0};
-#endif /*YAYA_MEMORY_STATS_GLOBAL*/
+memory_stats_t *memory_stats_global = NULL;
 
-bool memory_stats_show(
-        #if !YAYA_MEMORY_STATS_GLOBAL
-        memory_stats_t *mem_stats
-        #endif
-        )
+#undef memory_stats_init
+#undef memory_stats_free
+#undef memory_stats_out
+#undef memory_new
+#undef memory_del
+
+bool memory_stats_out(memory_stats_t *mem_stats, FILE* out)
 {
-#if YAYA_MEMORY_STATS_GLOBAL
-    memory_stats_t *mem_stats = &mem_stats_lib_global;
-#endif /*YAYA_MEMORY_STATS_GLOBAL*/
-
-    if(mem_stats != NULL){
-        printf("Request :% 10" PRIiMAX "; ", mem_stats->memory_request);
-        printf("NEW  :% 10" PRIiMAX "; ",    mem_stats->memory_call_new);
-        printf("\n");
-        printf("Produce :% 10" PRIiMAX "; ", mem_stats->memory_produce);
-        printf("RES  :% 10" PRIiMAX "; ",    mem_stats->memory_call_res);
-        printf("\n");
-        printf("Overhead:% 10" PRIiMAX "; ", mem_stats->memory_produce - mem_stats->memory_request);
-        printf("DEL  :% 10" PRIiMAX "; ",    mem_stats->memory_call_del);
-        printf("\n");
-        printf("Release :% 10" PRIiMAX "; ", mem_stats->memory_release);
-        printf("USAGE:% 10" PRIiMAX "; ",    mem_stats->memory_produce - mem_stats->memory_release);
-        printf("\n");
-
-        if(fflush(stdout) == 0){
-            return true;
-        }
+    /*Проверка, что указатель не NULL*/
+    if(out == NULL){
+        return false;
     }
-    return false;
+
+    /*Проверка, что указатель не NULL*/
+    if(mem_stats == NULL) {
+        return false;
+    }
+
+    fprintf(out, "Request :% 10" PRIiMAX "; ", mem_stats->memory_request);
+    fprintf(out, "NEW  :% 10" PRIiMAX "; ",    mem_stats->memory_call_new);
+    fprintf(out, "\n");
+    fprintf(out, "Produce :% 10" PRIiMAX "; ", mem_stats->memory_produce);
+    fprintf(out, "RES  :% 10" PRIiMAX "; ",    mem_stats->memory_call_res);
+    fprintf(out, "\n");
+    fprintf(out, "Overhead:% 10" PRIiMAX "; ", mem_stats->memory_produce - mem_stats->memory_request);
+    fprintf(out, "DEL  :% 10" PRIiMAX "; ",    mem_stats->memory_call_del);
+    fprintf(out, "\n");
+    fprintf(out, "Release :% 10" PRIiMAX "; ", mem_stats->memory_release);
+    fprintf(out, "USAGE:% 10" PRIiMAX "; ",    mem_stats->memory_produce - mem_stats->memory_release);
+    fprintf(out, "\n");
+
+    fflush(out);
+    return true;
 }
 
-#if YAYA_MEMORY_STATS_ON && !YAYA_MEMORY_STATS_GLOBAL
 bool memory_stats_init(memory_stats_t **mem_stats)
 {
     if(mem_stats == NULL){
@@ -65,57 +66,38 @@ bool memory_stats_init(memory_stats_t **mem_stats)
 
 bool memory_stats_free(memory_stats_t **mem_stats)
 {
-    if(mem_stats != NULL){
+    if(mem_stats != NULL) {
         free(*mem_stats);
         *mem_stats = NULL;
         return true;
     }
     return false;
 }
-#endif /*!YAYA_MEMORY_STATS_GLOBAL*/
-#endif /*YAYA_MEMORY_STATS_USE*/
 
-bool memory_new(
-        #if YAYA_MEMORY_STATS_USE && !YAYA_MEMORY_STATS_GLOBAL
-        memory_stats_t *mem_stats,
-        #endif
-        void **ptr,
-        void *old_ptr,
-        const size_t count,
-        const size_t size)
+bool memory_new_s(memory_stats_t *mem_stats, void **ptr, void **old_ptr, const size_t count, const size_t size)
 {
-#if YAYA_MEMORY_STATS_USE
-#if YAYA_MEMORY_STATS_GLOBAL
-#if YAYA_MEMORY_STATS_ON
-    memory_stats_t *mem_stats = &mem_stats_lib_global;
-#endif /*YAYA_MEMORY_STATS_ON*/
-#else
-    (void)(mem_stats);
-#endif /*YAYA_MEMORY_STATS_GLOBAL*/
-#endif /*YAYA_MEMORY_STATS_USE*/
+    /*Проверка, что возвращать есть куда*/
+    if(ptr == NULL) {
+        return false;
+    }
+
+    /*Проверка, что запрошено не нулевой размер памяти*/
+    const size_t new_size_request = (count * size);
+    if(new_size_request  == 0){
+        return false;
+    }
 
     /*Указатели под структуру памяти*/
     memory_t *mem_old = NULL;
     memory_t *mem_new = NULL;
 
-    /*Проверка, что запрошено не нулевой размер памяти*/
-    const size_t new_size_len = (count * size);
-    if(new_size_len == 0){
-        return false;
-    }
-
-    /*Проверка, что возвращать есть куда*/
-    if(ptr == NULL){
-        return false;
-    }
-
     /*Если память не инициализирована, то указатель на предыдущую память NULL*/
-    if(old_ptr == NULL){
+    if(old_ptr == NULL || *old_ptr == NULL) {
         /*Выделение памяти на хранение информации и указателя*/
-        mem_new = malloc(new_size_len + sizeof(memory_t));
+        mem_new = malloc(new_size_request  + offsetof(memory_t, memory_ptr));
 
         /*Проверка, что память выделилась*/
-        if(mem_new == NULL){
+        if(mem_new == NULL) {
             return false;
         }
 
@@ -124,105 +106,90 @@ bool memory_new(
         /*Зануление всего выделенного*/
         memset(mem_new, 0x00, produce);
 
-#if YAYA_MEMORY_FILL_AFTER_MEM
         /*Установка значения сверх выделенного*/
-        memset(mem_new->memory_ptr + new_size_len, YAYA_MEMORY_VALUE_AFTER_MEM, produce - new_size_len - sizeof(memory_t));
-#endif
+        memset(mem_new->memory_ptr + new_size_request , YAYA_MEMORY_VALUE_AFTER_MEM, produce - new_size_request - offsetof(memory_t, memory_ptr));
 
         /*Сохранение информации о количестве памяти*/
-        mem_new->memory_request = new_size_len;
+        mem_new->memory_request = new_size_request ;
         mem_new->memory_produce = produce;
+        mem_new->memory_canary  = YAYA_MEMORY_VALUE_CANARY;
 
         /*Возвращение указателя на память для пользователя*/
         *ptr = mem_new->memory_ptr;
 
-#if YAYA_MEMORY_STATS_USE && YAYA_MEMORY_STATS_ON
         /*Сохранение статистики*/
         if(mem_stats != NULL){
             mem_stats->memory_call_new++;
             mem_stats->memory_request += mem_new->memory_request;
-            mem_stats->memory_produce += mem_new->memory_produce - sizeof(memory_t);
+            mem_stats->memory_produce += mem_new->memory_produce;
         }
-#endif
     }
     /*Если память инициализированна, то указатель на предыдущую память не NULL*/
     else
     {
         /*Помещаем указатель со смещением*/
-        mem_old = old_ptr - sizeof(memory_t);
+        mem_old = (*old_ptr) - offsetof(memory_t, memory_ptr);
 
-        /*Запоминаем сколько было выделено и сколько запрошено*/
-        size_t old_size_r = mem_old->memory_request;
-#if YAYA_MEMORY_STATS_USE && YAYA_MEMORY_STATS_ON
-        size_t old_size_p = mem_old->memory_produce;
-#endif
-        /*Перераспределяем память*/
-        mem_new = realloc(mem_old, new_size_len + sizeof(memory_t));
-
-        /*Проверка, что память выделилась*/
-        if(mem_new == NULL){
+        /*Проверяем корректность структуры*/
+        if(mem_old->memory_canary != YAYA_MEMORY_VALUE_CANARY){
             return false;
         }
 
-        /*Запоминаем сколько выделено и сколько запрошено*/
-        size_t new_size_p = malloc_usable_size(mem_new);
-        size_t new_size_r = new_size_len;
+        /*Запоминаем сколько было выделено*/
+        size_t old_size = mem_old->memory_request;
+
+        /*Перераспределяем память*/
+        mem_new = realloc(mem_old, new_size_request  + offsetof(memory_t, memory_ptr));
+
+        /*Проверка, что память выделилась*/
+        if(mem_new == NULL) {
+            return false;
+        }
+
+        /*Запоминаем сколько выделено*/
+        size_t new_size = malloc_usable_size(mem_new);
 
         /*Вычисление разницы*/
-        intptr_t diff_r = (intptr_t)(new_size_r) - (intptr_t)(old_size_r);
-#if YAYA_MEMORY_STATS_USE && YAYA_MEMORY_STATS_ON
-        intptr_t diff_p = (intptr_t)(new_size_p) - (intptr_t)(old_size_p);
-#endif
+        intptr_t diff = (intptr_t)(new_size_request ) - (intptr_t)(old_size);
+
         /*Зануление хвоста нового выделенного*/
-        if(diff_r > 0){
-            memset(mem_new->memory_ptr + old_size_r, 0x00, (size_t)(diff_r));
+        if(diff > 0) {
+            memset(mem_new->memory_ptr + old_size, 0x00, (size_t)(diff));
         }
-#if YAYA_MEMORY_FILL_AFTER_MEM
+
         /*Установка значения сверх выделенного*/
-        if(diff_r < 0){
-            memset(mem_new->memory_ptr + new_size_r, YAYA_MEMORY_VALUE_AFTER_MEM, new_size_p - new_size_r - sizeof(memory_t));
+        if(diff < 0) {
+            memset(mem_new->memory_ptr + new_size_request , YAYA_MEMORY_VALUE_AFTER_MEM, new_size - new_size_request  - offsetof(memory_t, memory_ptr));
         }
-#endif
 
         /*Сохранение информации о количестве запрощеной памяти*/
-        mem_new->memory_produce = new_size_p;
-        mem_new->memory_request = new_size_r;
+        mem_new->memory_request = new_size_request ;
+        mem_new->memory_produce = new_size;
+
+        /*Уничтожаем старый указатель*/
+        *old_ptr = NULL;
 
         /*Возвращение указателя на память для пользователя*/
         *ptr = mem_new->memory_ptr;
 
-#if YAYA_MEMORY_STATS_USE && YAYA_MEMORY_STATS_ON
         /*Сохранение статистики*/
-        if(mem_stats != NULL){
+        if(mem_stats != NULL) {
             mem_stats->memory_call_res++;
-            mem_stats->memory_request += (size_t)(diff_r);
-            mem_stats->memory_produce += (size_t)(diff_p);
+            mem_stats->memory_request += mem_new->memory_request;
+            mem_stats->memory_produce += mem_new->memory_produce;
         }
-#endif
     }
     return true;
 }
 
-bool memory_del(
-        #if YAYA_MEMORY_STATS_USE && !YAYA_MEMORY_STATS_GLOBAL
-        memory_stats_t *mem_stats,
-        #endif
-        void **ptr)
+bool memory_del_s(memory_stats_t *mem_stats, void **ptr)
 {
-#if YAYA_MEMORY_STATS_USE && YAYA_MEMORY_STATS_ON
-#if YAYA_MEMORY_STATS_GLOBAL
-    memory_stats_t *mem_stats = &mem_stats_lib_global;
-#else
-    (void)(mem_stats);
-#endif /*YAYA_MEMORY_STATS_GLOBAL*/
-#endif /*YAYA_MEMORY_STATS_USE*/
-
     /*Проверка, что указатели не NULL*/
-    if(ptr == NULL){
+    if(ptr == NULL) {
         return false;
     }
 
-    if(*ptr == NULL){
+    if(*ptr == NULL) {
         return false;
     }
 
@@ -232,18 +199,16 @@ bool memory_del(
     /*Помещаем указатель со смещением*/
     mem = *ptr - offsetof(memory_t, memory_ptr);
 
-#if YAYA_MEMORY_STATS_USE && YAYA_MEMORY_STATS_ON
     /*Сохранение статистики*/
     if(mem_stats != NULL){
         mem_stats->memory_call_del++;
         mem_stats->memory_release += mem->memory_produce;
     }
-#endif
 
 #if YAYA_MEMORY_FILL_BEFORE_FREE
-    volatile size_t  volsize = mem->memory_produce;
-    volatile uint8_t *volptr = (uint8_t*)(mem);
-    while (volsize--){
+    volatile size_t   volsize = mem->memory_produce;
+    volatile uint8_t* volptr  = (uint8_t*)(mem);
+    while (volsize--) {
         *(volptr++) = 0x00;
     }
 #endif
@@ -253,6 +218,16 @@ bool memory_del(
     *ptr = NULL;
 
     return true;
+}
+
+bool memory_new(void **ptr, void **old_ptr, const size_t count, const size_t size)
+{
+    return memory_new_s(NULL, ptr, old_ptr, count, size);
+}
+
+bool memory_del(void **ptr)
+{
+    return memory_del_s(NULL, ptr);
 }
 
 bool memory_zero(void *ptr)
@@ -268,12 +243,18 @@ bool memory_zero(void *ptr)
     /*Помещаем указатель со смещением*/
     mem_info = ptr - offsetof(memory_t, memory_ptr);
 
+    /*Проверяем корректность структуры*/
+    if(mem_info->memory_canary != YAYA_MEMORY_VALUE_CANARY){
+        return false;
+    }
+
     /*Сохраняем значения*/
-    volatile size_t  volsize = mem_info->memory_request;
-    volatile uint8_t *volptr = mem_info->memory_ptr;
+    volatile size_t   volsize = mem_info->memory_request;
+    volatile uint8_t* volptr  = mem_info->memory_ptr;
+
     /*Заполняем нулями*/
-    while (volsize--){
-        *volptr++ = 0;
+    while (volsize--) {
+        *volptr++ = 0x00;
     }
 
     return true;
@@ -292,9 +273,15 @@ bool memory_fill(void *ptr, uint8_t value)
     /*Помещаем указатель со смещением*/
     mem_info = ptr - offsetof(memory_t, memory_ptr);
 
+    /*Проверяем корректность структуры*/
+    if(mem_info->memory_canary != YAYA_MEMORY_VALUE_CANARY){
+        return false;
+    }
+
     /*Сохраняем значения*/
     volatile size_t  volsize = mem_info->memory_request;
     volatile uint8_t *volptr = mem_info->memory_ptr;
+
     /*Заполняем значением*/
     while (volsize--){
         *volptr++ = value;
@@ -315,6 +302,11 @@ size_t memory_size(void *ptr)
 
     /*Помещаем указатель со смещением*/
     mem_info = ptr - offsetof(memory_t, memory_ptr);
+
+    /*Проверяем корректность структуры*/
+    if(mem_info->memory_canary != YAYA_MEMORY_VALUE_CANARY){
+        return 0;
+    }
 
     /*Возвращаем размер запрошеной памяти*/
     return mem_info->memory_request;
@@ -374,6 +366,12 @@ bool memory_shuf(void *base, size_t count, size_t size, unsigned int seed, memor
     }
     if(size == 0){
         return false;
+    }
+    if(set_seed == NULL){
+        set_seed = srand;
+    }
+    if(get_rand == NULL){
+        get_rand = rand;
     }
 
     set_seed(seed);
@@ -467,8 +465,13 @@ bool memory_rsearch(void** search_res, void *key, void *base, size_t count, size
     return false;
 }
 
-bool memory_dump(void *ptr, size_t len, uintmax_t catbyte, uintmax_t column)
+bool memory_dump(FILE* out, void *ptr, size_t len, uintmax_t catbyte, uintmax_t column)
 {
+    /*Проверка, что указатель не NULL*/
+    if(out == NULL){
+        return false;
+    }
+
     /*Проверка, что указатель не NULL*/
     if(ptr == NULL){
         return false;
@@ -482,8 +485,14 @@ bool memory_dump(void *ptr, size_t len, uintmax_t catbyte, uintmax_t column)
         return false;
     }
 
-    if(len == 0){
+    if(len == 0) {
         memory_t *mem = ptr - offsetof(memory_t, memory_ptr);
+
+        /*Проверяем корректность структуры*/
+        if(mem->memory_canary != YAYA_MEMORY_VALUE_CANARY){
+            return false;
+        }
+
         ptr = mem->memory_ptr;
         len = mem->memory_request;
     }
@@ -493,47 +502,48 @@ bool memory_dump(void *ptr, size_t len, uintmax_t catbyte, uintmax_t column)
 
     /*Шапка*/
     {
-        printf("╭");
+        fprintf(out, "╭");
         for(uintmax_t i = 0; i < col1; i++){
-            printf("-");
+            fprintf(out, "-");
         }
-        printf("┬");
+        fprintf(out, "┬");
         for(uintmax_t i = 0; i < col2; i++){
-            printf("-");
+            fprintf(out, "-");
         }
-        printf("╮");
-        printf("\n");
-        printf("| Len: %8" PRIuMAX " byte | ", len);
+        fprintf(out, "╮");
+        fprintf(out, "\n");
+        fprintf(out, "| Len: %8" PRIuMAX " byte | ", len);
         for(uintmax_t i = 0; i < column; i++){
             for(uintmax_t j = 0; j < catbyte; j++){
-                printf("%02" PRIXMAX "", i*catbyte+j);
+                fprintf(out, "%02" PRIXMAX "", i*catbyte+j);
             }
-            printf(" ");
+            fprintf(out, " ");
         }
-        printf("|");
-        printf("\n");
-        printf("├");
+        fprintf(out, "|");
+        fprintf(out, "\n");
+        fprintf(out, "├");
         for(uintmax_t i = 0; i < col1; i++){
-            printf("-");
+            fprintf(out, "-");
         }
-        printf("┼");
+        fprintf(out, "┼");
         for(uintmax_t i = 0; i < col2; i++){
-            printf("-");
+            fprintf(out, "-");
         }
-        printf("┤");
-        printf("\n");
+        fprintf(out, "┤");
+        fprintf(out, "\n");
     }
 
     /*Тело*/
     {
-        uint8_t *nadr = ptr - (((uintptr_t)ptr % (column * catbyte)) % 0x10);
+        const uint8_t mod_bit = 0x10;
+        uint8_t *nadr = ptr - (((uintptr_t)ptr % (column * catbyte)) % mod_bit);
 
         uintmax_t pos = 0;
         while(pos < len){
             if(pos == 0){
-                printf("| 0x%0*" PRIXPTR " | ", (int)(sizeof(uintptr_t) * 2), (uintptr_t)nadr);
+                fprintf(out, "| 0x%0*" PRIXPTR " | ", (int)(sizeof(uintptr_t) * 2), (uintptr_t)nadr);
             }else{
-                printf("| 0x%0*" PRIXPTR " | ", (int)(sizeof(uintptr_t) * 2), (uintptr_t)ptr + pos);
+                fprintf(out, "| 0x%0*" PRIXPTR " | ", (int)(sizeof(uintptr_t) * 2), (uintptr_t)ptr + pos);
             }
 
             for(uintmax_t i = 0; i < column; i++){
@@ -544,48 +554,47 @@ bool memory_dump(void *ptr, size_t len, uintmax_t catbyte, uintmax_t column)
                         if(&nadr[i * catbyte + ind] == ptr){
                             goto L1;
                         }
-                        printf("..");
+                        fprintf(out, "..");
                     }
-                    printf(" ");
+                    fprintf(out, " ");
                     continue;
                 }
 L1:
                 for(uintmax_t k = ind; k < catbyte; k++){
                     if(pos < len){
-                        printf("%02" PRIx8 "", ((uint8_t*)ptr)[pos]);
+                        fprintf(out, "%02" PRIx8 "", ((uint8_t*)ptr)[pos]);
                         pos++;
 
                         if(pos == len){
                             continue;
                         }
                     }else{
-                        printf("..");
+                        fprintf(out, "..");
                     }
                 }
-                printf(" ");
+                fprintf(out, " ");
             }
-            printf("|");
-            printf("\n");
+            fprintf(out, "|");
+            fprintf(out, "\n");
         }
     }
 
     /*Подвал*/
     {
-        printf("╰");
+        fprintf(out, "╰");
         for(uintmax_t i = 0; i < col1; i++){
-            printf("-");
+            fprintf(out, "-");
         }
-        printf("┴");
+        fprintf(out, "┴");
         for(uintmax_t i = 0; i < col2; i++){
-            printf("-");
+            fprintf(out, "-");
         }
-        printf("╯");
+        fprintf(out, "╯");
     }
-    printf("\n");
-    if(fflush(stdout) == 0){
-        return true;
-    }
-    return false;
+    fprintf(out, "\n");
+
+    fflush(out);
+    return true;
 }
 
 static uint64_t bit_sequence(void *ptr, uintmax_t offset, uintmax_t len)
@@ -630,8 +639,13 @@ static uint64_t bit_sequence(void *ptr, uintmax_t offset, uintmax_t len)
     return 0;
 }
 
-bool memory_look(void *ptr, size_t struct_count, size_t struct_size, intmax_t list_bit_len[])
+bool memory_look(FILE* out, void *ptr, size_t struct_count, size_t struct_size, intmax_t bit_len_list[])
 {
+    /*Проверка, что указатель не NULL*/
+    if(out == NULL){
+        return false;
+    }
+
     /*Проверка, что указатель не NULL*/
     if(ptr == NULL){
         return false;
@@ -640,42 +654,24 @@ bool memory_look(void *ptr, size_t struct_count, size_t struct_size, intmax_t li
     /* Проверка и отладочная информация */
     {
         /* Объявление вычислимых констант */
-        uintmax_t list_bit_count = 0;
         uintmax_t list_bit_sum   = 0;
 
         /* Вычисление констант */
-        for(uintmax_t i = 0; 0 == 0; i++){
-            if(list_bit_len[i] == 0){
-                list_bit_count = i;
+        for(uintmax_t i = 0; 0 == 0; i++) {
+            if(bit_len_list[i] == 0){
                 break;
             }
-            if(list_bit_len[i] > 0){
-                list_bit_sum += (uintmax_t)(+list_bit_len[i]);
+            if(bit_len_list[i] > 0){
+                list_bit_sum += (uintmax_t)(+bit_len_list[i]);
             }else{
-                list_bit_sum += (uintmax_t)(-list_bit_len[i]);
+                list_bit_sum += (uintmax_t)(-bit_len_list[i]);
             }
         }
 
         /* Проверка, что переданый размер структуры и массив отступов совпадают */
         if((struct_size * __CHAR_BIT__) != list_bit_sum) {
-            printf("ERROR: (struct_size * __CHAR_BIT__) != list_bit_sum \n");
-            printf("ptr = 0x%0*" PRIXPTR "\n", (int)(sizeof(uintptr_t) * 2), (uintptr_t)((uint8_t*)(ptr)));
-            printf("ucn = %" PRIiMAX "\n", struct_count);
-            printf("lcn = %" PRIiMAX "\n", list_bit_count);
-            printf("bit = %" PRIiMAX " bit\n", struct_size * __CHAR_BIT__);
-            printf("sum = %" PRIiMAX " bit\n", list_bit_sum);
-            printf("dlt = %" PRIiMAX "\n", struct_size * __CHAR_BIT__ - list_bit_sum);
-            printf("lbl = [");
-            for(intmax_t i = 0; 0 == 0; i++){
-                if(list_bit_len[i] == 0){
-                    break;
-                }
-                printf("%" PRIiMAX "", list_bit_len[i]);
-                if(list_bit_len[i+1] != 0){
-                    printf(", ");
-                }
-            }
-            printf("]\n");
+            fprintf(out, "ERROR: (struct_size * __CHAR_BIT__) != |list_bit_sum| \n");
+            return false;
         }
     }
 
@@ -687,86 +683,84 @@ bool memory_look(void *ptr, size_t struct_count, size_t struct_size, intmax_t li
         intmax_t bits_count = 0;
 
         for(intmax_t i = 0; ; i++){
-            if(list_bit_len[i] == 0){
+            if(bit_len_list[i] == 0){
                 list_count = i;
                 break;
             }
-            if(list_bit_len[i] < 0){
+            if(bit_len_list[i] < 0){
                 continue;
             }
-            bits_count += list_bit_len[i];
-            col2 += list_bit_len[i] / 4 + 1;
-            if(list_bit_len[i] < 4 || list_bit_len[i] % 4 > 0){
+            bits_count += bit_len_list[i];
+            col2 += bit_len_list[i] / 4 + 1;
+            if(bit_len_list[i] < 4 || bit_len_list[i] % 4 > 0){
                 col2 += 1;
             }
         }
 
         /* Шапка */
         {
-            printf("╭");
+            fprintf(out, "╭");
             for(intmax_t i = 0; i < col1; i++){
-                printf("-");
+                fprintf(out, "-");
             }
-            printf("┬");
+            fprintf(out, "┬");
             for(intmax_t i = 0; i < col2; i++){
-                printf("-");
+                fprintf(out, "-");
             }
-            printf("╮");
-            printf("\n");
-            printf("| S: %5" PRIuMAX "/%-5"PRIuMAX" bit | ", bits_count, struct_size * __CHAR_BIT__);
+            fprintf(out, "╮");
+            fprintf(out, "\n");
+            fprintf(out, "| S: %5" PRIuMAX "/%-5"PRIuMAX" bit | ", bits_count, struct_size * __CHAR_BIT__);
             for(intmax_t i = 0; i < list_count; i++){
-                if(list_bit_len[i] < 0){
+                if(bit_len_list[i] < 0){
                     continue;
                 }
-                printf("%*"PRIiMAX" ", (int)((list_bit_len[i] / 4) + ((list_bit_len[i] < 4 || list_bit_len[i] % 4 > 0) ? 1 : 0)), list_bit_len[i]);
+                fprintf(out, "%*"PRIiMAX" ", (int)((bit_len_list[i] / 4) + ((bit_len_list[i] < 4 || bit_len_list[i] % 4 > 0) ? 1 : 0)), bit_len_list[i]);
             }
-            printf("|");
-            printf("\n");
-            printf("├");
+            fprintf(out, "|");
+            fprintf(out, "\n");
+            fprintf(out, "├");
             for(intmax_t i = 0; i < col1; i++){
-                printf("-");
+                fprintf(out, "-");
             }
-            printf("┼");
+            fprintf(out, "┼");
             for(intmax_t i = 0; i < col2; i++){
-                printf("-");
+                fprintf(out, "-");
             }
-            printf("┤");
-            printf("\n");
+            fprintf(out, "┤");
+            fprintf(out, "\n");
         }
         /* Тело */
         {
             for(uintmax_t i = 0; i < struct_count; i++){
-                printf("| 0x%0*" PRIXPTR " | ", (int)(sizeof(uintptr_t) * 2), (uintptr_t)(ptr) + (i * (uintptr_t)(struct_size)));
+                fprintf(out, "| 0x%0*" PRIXPTR " | ", (int)(sizeof(uintptr_t) * 2), (uintptr_t)(ptr) + (i * (uintptr_t)(struct_size)));
                 intmax_t offset = 0;
                 for(intmax_t k = 0; k < list_count; k++){
-                    if(list_bit_len[k] > 0){
-                        uintmax_t res = bit_sequence(ptr, (uintptr_t)(struct_size * __CHAR_BIT__ * i) + (uintptr_t)(offset), (uintmax_t)(list_bit_len[k]));
-                        printf("%0*" PRIxMAX " ", (int)(list_bit_len[k] / 4 + ((list_bit_len[k] < 4 || list_bit_len[k] % 4 > 0) ? 1 : 0)), res);
-                        offset += list_bit_len[k];
+                    if(bit_len_list[k] > 0){
+                        uintmax_t res = bit_sequence(ptr, (uintptr_t)(struct_size * __CHAR_BIT__ * i) + (uintptr_t)(offset), (uintmax_t)(bit_len_list[k]));
+                        fprintf(out, "%0*" PRIxMAX " ", (int)(bit_len_list[k] / 4 + ((bit_len_list[k] < 4 || bit_len_list[k] % 4 > 0) ? 1 : 0)), res);
+                        offset += bit_len_list[k];
                     }else{
-                        offset += -list_bit_len[k];
+                        offset += -bit_len_list[k];
                     }
                 }
-                printf("|\n");
+                fprintf(out, "|\n");
             }
         }
         /*Подвал*/
         {
-            printf("╰");
+            fprintf(out, "╰");
             for(intmax_t i = 0; i < col1; i++){
-                printf("-");
+                fprintf(out, "-");
             }
-            printf("┴");
+            fprintf(out, "┴");
             for(intmax_t i = 0; i < col2; i++){
-                printf("-");
+                fprintf(out, "-");
             }
-            printf("╯");
+            fprintf(out, "╯");
         }
-        printf("\n");
+        fprintf(out, "\n");
     }
 
-    if(fflush(stdout) == 0){
-        return true;
-    }
-    return false;
+    fflush(out);
+    return true;
 }

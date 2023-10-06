@@ -9,11 +9,18 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_C_STANDARD 11)
 add_definitions(-std=c11)
 
-set(VERSION 0.9)
+set(VERSION 1.0)
 set(PROJECT_NAME yaya_memory)
 project(${PROJECT_NAME})
 
-set(SRC_LIST yaya_memory.c)
-set(INC_LIST yaya_memory.h yaya_mem.h)
+set(SRC_LIST
+    yaya_memory.c
+)
+
+set(INC_LIST
+    yaya_mem.h
+    yaya_memory.h
+    yaya_memory_stats.h
+)
 
 add_library(${PROJECT_NAME} SHARED ${SRC_LIST} ${INC_LIST})

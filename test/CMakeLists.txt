@@ -9,22 +9,21 @@ cmake_minimum_required(VERSION 3.0)
 set(CMAKE_C_STANDARD 11)
 add_definitions(-std=c11)
 
-add_compile_options(-Wall -Wfatal-errors -Wconversion)
+add_compile_options(-Wall -Wextra -Wconversion)
 
-set(VERSION 0.8)
 set(PROJECT_NAME memory_test)
 project(${PROJECT_NAME})
-
-add_definitions(-DYAYA_MEMORY_STATS_USE=1)
-add_definitions(-DYAYA_MEMORY_STATS_GLOBAL=1)
-add_definitions(-DYAYA_MEMORY_STATS_ON=1)
-add_definitions(-DYAYA_MEMORY_MACRO_DEF=1)
 
 add_executable(
     ${PROJECT_NAME}
     main.c
-    )
+    test_memory.c
+    test_memory_stats_global.c
+    test_memory_stats_local.c
+)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/../lib/ yaya_memory)
-target_include_directories(${PROJECT_NAME} PUBLIC ../lib/)
-target_link_libraries(${PROJECT_NAME} yaya_memory)
+if (NOT TARGET yaya_memory)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/../lib/ yaya_memory)
+    target_include_directories(${PROJECT_NAME} PRIVATE ../lib/)
+    target_link_libraries(${PROJECT_NAME} yaya_memory)
+endif()
