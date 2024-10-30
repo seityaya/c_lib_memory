@@ -3,7 +3,7 @@
 #Creation Date          : 2022.12
 #License Link           : https://spdx.org/licenses/LGPL-2.1-or-later.html
 #SPDX-License-Identifier: LGPL-2.1-or-later
-#Copyright © 2022-2023 Seityagiya Terlekchi. All rights reserved.
+#Copyright © 2022-2024 Seityagiya Terlekchi. All rights reserved.
 
 cmake_minimum_required(VERSION 3.0)
 
@@ -28,5 +28,3 @@ add_executable(
 )
 
 target_link_libraries(${PROJECT_NAME} PUBLIC yaya_memory)
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../core)

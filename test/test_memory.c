@@ -7,7 +7,7 @@
 
 #include "yaya_memory.h"
 
-void test_param() {
+void test_param(void) {
     printf("test_param\n");
 
     void *ptr = NULL;
@@ -250,7 +250,7 @@ static bool test_memory_fill(void *ptr) {
     memory_t *mem = NULL;
 
     /*Помещаем указатель со смещением*/
-    mem = ptr - offsetof(memory_t, memory_ptr);
+    mem = (memory_t*)((char*)(ptr) - offsetof(memory_t, memory_ptr));
 
     size_t produce = malloc_usable_size(mem);
 
@@ -263,8 +263,7 @@ static bool test_memory_fill(void *ptr) {
     return true;
 }
 
-void test_dump() {
-
+void test_dump(void) {
     printf("test_dump\n");
 
     void *ptr = NULL;
@@ -275,7 +274,7 @@ void test_dump() {
     memory_req(&ptr, 17, sizeof(char));
     memory_dump(stdout, ptr, 0, 1, 16);
 
-    memory_req(&ptr, 42, sizeof(char));
+    memory_req(&ptr, 99, sizeof(char));
     memory_dump(stdout, ptr, 0, 1, 16);
 
     test_memory_fill(ptr);
@@ -308,7 +307,7 @@ void test_dump() {
     fflush(stdout);
 }
 
-void test_look() {
+void test_look(void) {
     printf("test_look\n");
 
     typedef struct S {
@@ -326,17 +325,17 @@ void test_look() {
     } S;
 
     int a = 0;
-    printf("%p\n", &a);
+    printf("%p\n", (void*)(&a));
 
-    S t[] = {{7, 1, 10, 5, -1, 3, 1, 0, 17, 15, (int *)(3)},
-             {7, 1, 10, 5, -1, 2, 1, 1, 17, 15, &a},
-             {7, 1, 10, 5, -1, 1, 1, -1, 17, 15, &t},
-             {7, 1, 10, 5, 0 - 1, 0, 255, 2, 17, 15, &t},
-             {7, 1, 10, 5, 0, 0xFFFF, 0, -2, 17, 15, &t[0].a}};
+    S t[] = {{7, 1, 10, 5,    -1,      3,   1,  0, 17, 15, (int *)(3) },
+             {7, 1, 10, 5,    -1,      2,   1,  1, 17, 15,         &a },
+             {7, 1, 10, 5,    -1,      1,   1, -1, 17, 15,         &t },
+             {7, 1, 10, 5, 0 - 1,      0, 255,  2, 17, 15,         &t },
+             {7, 1, 10, 5,     0, 0xFFFF,   0, -2, 17, 15,    &t[0].a } };
 
     memory_dump(stdout, t, sizeof(S) * 5, 1, 16);
 
-    memory_look(stdout, &t, 5, sizeof(S), ({ (intmax_t[]){3, 1, 4, 8, 16, 8, 8, 16, 8, 24, 32, 21, 11, 32, sizeof(void *) * __CHAR_BIT__, 0}; }));
+    memory_look(stdout, &t, 5, sizeof(S), (intmax_t[]){3, 1, 4, 8, 16, 8, 8, 16, 8, 24, 32, 21, 11, 32, sizeof(void *) * __CHAR_BIT__, 0});
     memory_look(stdout, &t, 5, sizeof(S), memory_bit_len_list(3, 1, 4, -8, 16, 8, 8, 16, 8, -24, 32, 21, 11, 32, 64));
 
     void *ptr = NULL;
@@ -350,7 +349,7 @@ void test_look() {
     fflush(stdout);
 }
 
-void test_swap() {
+void test_swap(void) {
     printf("test_swap\n");
 
     {
@@ -396,8 +395,9 @@ void test_swap() {
     fflush(stdout);
 }
 
-void test_shuf() {
+void test_shuf(void) {
     printf("test_shuf\n");
+
     const int8_t count_mas = 10;
     const int8_t count_test = 127;
     int8_t *mas = NULL;
@@ -449,7 +449,7 @@ void test_shuf() {
 
 static int comp(const int8_t *i, const int8_t *j) { return *i - *j; }
 
-void test_sort() {
+void test_sort(void) {
     printf("test_sort\n");
 
     const int8_t count_mas = 10;
@@ -483,7 +483,7 @@ void test_sort() {
     fflush(stdout);
 }
 
-void test_search() {
+void test_search(void) {
     printf("test_search\n");
 
     const int8_t count_mas = 10;

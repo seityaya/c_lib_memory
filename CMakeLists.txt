@@ -7,9 +7,9 @@
 
 cmake_minimum_required(VERSION 3.0)
 
-set(PROJECT_NAME yaya_memory)
+project(yaya_memory_project)
 
-project(${PROJECT_NAME})
+set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Werror")
 
 add_subdirectory(core)
 add_subdirectory(test)

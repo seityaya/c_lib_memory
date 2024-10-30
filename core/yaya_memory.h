@@ -27,9 +27,11 @@
 
 /**
  * Заполнять память за пределами запрошеной области
+ * ОПАСНАЯ НАСТРОЙКА!
+ * DANGEROUS SETTING!
  */
 #ifndef YAYA_MEMORY_FILL_AFTER_MEM
-#   define YAYA_MEMORY_FILL_AFTER_MEM   1
+#   define YAYA_MEMORY_FILL_AFTER_MEM   0
 #endif /*YAYA_MEMORY_FILL_AFTER_MEM*/
 
 /**
@@ -46,12 +48,12 @@
 #   define YAYA_MEMORY_VALUE_CANARY     0x7968574635241320
 #endif /*YAYA_MEMORY_VALUE_CANARY*/
 
-
 typedef struct memory_t {
-    size_t memory_canary;                   // канарейка
+    size_t memory_canary_beg;               // начальная канарейка
     size_t memory_request;                  // запросили
     size_t memory_produce;                  // выдали
     alignas(max_align_t) char memory_ptr[]; // указатель на начало
+/*  size_t memory_canary_end;               // коечная канарейка */ //TODO
 } memory_t;
 
 typedef int  (*memory_func_comp_t)(const void *, const void *);
@@ -61,6 +63,7 @@ typedef int  (*memory_func_rand_t)(void);
 bool    memory_req(void **ptr, size_t count, size_t size);
 bool    memory_ret(void **ptr);
 
+bool    memory_chk (void *ptr);
 bool    memory_zero(void *ptr);
 bool    memory_fill(void *ptr, uint8_t value);
 size_t  memory_size(void *ptr);
@@ -72,23 +75,28 @@ bool    memory_sort(void *base, size_t count, size_t size, memory_func_comp_t co
 bool    memory_bsearch(void **search_res, void *key, void *base, size_t count, size_t size, memory_func_comp_t compare);
 bool    memory_rsearch(void **search_res, void *key, void *base, size_t count, size_t size, memory_func_comp_t compare);
 bool    memory_look(FILE* out, void *ptr, size_t struct_count, size_t struct_size, int64_t bit_len_list[]);
-#define memory_bit_len_list(...) ({ (int64_t[]){__VA_ARGS__, 0}; })
+
+#define memory_bit_len_list(...) (int64_t[]){__VA_ARGS__, 0}
 
 /*==================================================================================================================================================*/
 
 /**
  * Включить подсчет статистики использования памяти
  */
-#ifndef YAYA_MEMORY_STATS_USE
-#   define YAYA_MEMORY_STATS_USE            1
+#ifndef YAYA_MEMORY_STATS_LOCAL
+#   define YAYA_MEMORY_STATS_LOCAL       0
+#endif /*YAYA_MEMORY_STATS_USE*/
+
 /**
  * Для подсчета статистики использовать глобальную переменную
  */
-#   ifndef YAYA_MEMORY_STATS_GLOBAL
-#       define YAYA_MEMORY_STATS_GLOBAL     0
-#   endif /*YAYA_MEMORY_STATS_GLOBAL*/
-#endif /*YAYA_MEMORY_STATS_USE*/
+#ifndef YAYA_MEMORY_STATS_GLOBAL
+#    define YAYA_MEMORY_STATS_GLOBAL     0
+#endif /*YAYA_MEMORY_STATS_GLOBAL*/
 
+#if YAYA_MEMORY_STATS_LOCAL == 1 && YAYA_MEMORY_STATS_GLOBAL == 1
+#error YAYA_MEMORY_STATS_LOCAL == 1 or YAYA_MEMORY_STATS_GLOBAL == 1
+#endif
 
 typedef struct memory_stats {
     size_t memory_request;  // запросил
