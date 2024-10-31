@@ -13,6 +13,10 @@ set(CMAKE_C_STANDARD 11)
 
 set(SRC_LIST
     main.c
+
+    using_base.c
+    using_correct.c
+    using_wrong.c
 )
 
 set(INC_LIST
