@@ -5,6 +5,16 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Copyright © 2022-2024 Seityagiya Terlekchi. All rights reserved.
 
+#include "inttypes.h"
+#include "malloc.h"
+#include "stdalign.h"
+#include "stdbool.h"
+#include "stddef.h"
+#include "stdint.h"
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
+
 #include "yaya_memory.h"
 
 memory_stats_t memory_stats_global = {0};

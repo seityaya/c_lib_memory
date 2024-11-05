@@ -8,15 +8,9 @@
 #ifndef YAYA_MEMORY_H
 #define YAYA_MEMORY_H
 
-#include "inttypes.h"
-#include "malloc.h"
-#include "stdalign.h"
 #include "stdbool.h"
 #include "stddef.h"
-#include "stdint.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
+#include "stdalign.h"
 
 /**
  * Очищать область памяти перед освобождением
