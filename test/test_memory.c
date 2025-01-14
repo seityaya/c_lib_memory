@@ -3,14 +3,19 @@
 // Creation Date          : 2022.12
 // License Link           : https://spdx.org/licenses/LGPL-2.1-or-later.htmlater.html
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright © 2022-2024 Seityagiya Terlekchi. All rights reserved.
+// Copyright © 2022-2025 Seityagiya Terlekchi. All rights reserved.
 
+#include "inttypes.h"
+#include "malloc.h"
+#include "stdlib.h"
+#include "string.h"
+/**/
 #include "yaya_memory.h"
 
 void test_param(void) {
     printf("test_param\n");
 
-    void *ptr = NULL;
+    void *ptr     = NULL;
     void *ptr_tmp = NULL;
 
     {
@@ -42,7 +47,7 @@ void test_param(void) {
     }
 
     {
-        ptr = NULL;
+        ptr     = NULL;
         ptr_tmp = NULL;
 
         if (memory_req(&ptr, 1, sizeof(char))) {
@@ -172,6 +177,12 @@ void test_param(void) {
         } else {
             printf("E-7 ERROR\n");
         }
+
+        if (memory_ret(&ptr)) {
+            printf("E-8 OK\n");
+        } else {
+            printf("E-8 ERROR\n");
+        }
     }
 
     {
@@ -250,7 +261,7 @@ static bool test_memory_fill(void *ptr) {
     memory_t *mem = NULL;
 
     /*Помещаем указатель со смещением*/
-    mem = (memory_t*)((char*)(ptr) - offsetof(memory_t, memory_ptr));
+    mem = (memory_t *)((char *)(ptr)-offsetof(memory_t, memory_ptr));
 
     size_t produce = malloc_usable_size(mem);
 
@@ -300,8 +311,9 @@ void test_dump(void) {
     memory_dump(stdout, ptr, 0, 1, 64);
 
     void *ptr_save = ptr;
-    memory_ret(&ptr);
     memory_dump(stdout, ptr_save, 33, 1, 64);
+
+    memory_ret(&ptr);
 
     printf("\n");
     fflush(stdout);
@@ -314,18 +326,22 @@ void test_look(void) {
         uint8_t x1 : 3;
         uint8_t x2 : 1;
         uint8_t x3 : 4;
+        // 8
         uint16_t a;
         int8_t b;
+        // 8
         uint16_t c;
         uint8_t d;
+        // 24
         int32_t e;
         uint32_t f1 : 21;
         uint32_t f2 : 11;
+        // 32
         void *p;
     } S;
 
     int a = 0;
-    printf("%p\n", (void*)(&a));
+    printf("%p\n", (void *)(&a));
 
     S t[] = {{7, 1, 10, 5,    -1,      3,   1,  0, 17, 15, (int *)(3) },
              {7, 1, 10, 5,    -1,      2,   1,  1, 17, 15,         &a },
@@ -333,10 +349,12 @@ void test_look(void) {
              {7, 1, 10, 5, 0 - 1,      0, 255,  2, 17, 15,         &t },
              {7, 1, 10, 5,     0, 0xFFFF,   0, -2, 17, 15,    &t[0].a } };
 
-    memory_dump(stdout, t, sizeof(S) * 5, 1, 16);
+    // NOTE
+    // Valgrind: Use of uninitialised value of size 8
+    // memory_dump(stdout, t, sizeof(S) * 5, 1, 32);
+    // memory_look(stdout, &t, 5, sizeof(S), (intmax_t[]){3, 1, 4, 8, 16, 8, 8, 16, 8, 24, 32, 21, 11, 32, sizeof(void *) * __CHAR_BIT__, 0});
 
-    memory_look(stdout, &t, 5, sizeof(S), (intmax_t[]){3, 1, 4, 8, 16, 8, 8, 16, 8, 24, 32, 21, 11, 32, sizeof(void *) * __CHAR_BIT__, 0});
-    memory_look(stdout, &t, 5, sizeof(S), memory_bit_len_list(3, 1, 4, -8, 16, 8, 8, 16, 8, -24, 32, 21, 11, 32, 64));
+    memory_look(stdout, &t, 5, sizeof(S), memory_bit_len_list(3, 1, 4, -8, 16, 8, -8, 16, 8, -24, 32, 21, 11, -32, 64));
 
     void *ptr = NULL;
 
@@ -398,9 +416,9 @@ void test_swap(void) {
 void test_shuf(void) {
     printf("test_shuf\n");
 
-    const int8_t count_mas = 10;
+    const int8_t count_mas  = 10;
     const int8_t count_test = 127;
-    int8_t *mas = NULL;
+    int8_t *mas             = NULL;
 
     memory_req((void **)(&mas), (size_t)(count_mas), sizeof(int8_t));
 
@@ -453,7 +471,7 @@ void test_sort(void) {
     printf("test_sort\n");
 
     const int8_t count_mas = 10;
-    int8_t *mas = {0};
+    int8_t *mas            = {0};
 
     memory_req((void **)(&mas), (size_t)(count_mas), sizeof(int8_t));
 
@@ -495,7 +513,7 @@ void test_search(void) {
         mas[i] = i;
     }
 
-    uint8_t value = 11;
+    uint8_t value   = 11;
     int8_t *serch_r = NULL;
     int8_t *serch_b = NULL;
 

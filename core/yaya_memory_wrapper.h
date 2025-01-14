@@ -3,22 +3,19 @@
 // Creation Date          : 2022.12
 // License Link           : https://spdx.org/licenses/LGPL-2.1-or-later.htmlater.html
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright © 2022-2024 Seityagiya Terlekchi. All rights reserved.
+// Copyright © 2022-2025 Seityagiya Terlekchi. All rights reserved.
 
 #ifndef YAYA_MEMORY_WRAPPER_H
 #define YAYA_MEMORY_WRAPPER_H
 
-#include "yaya_memory.h"
-
-#undef memory_req
-#undef memory_ret
-
 #if YAYA_MEMORY_STATS_LOCAL == 0 && YAYA_MEMORY_STATS_GLOBAL == 0
+#   include "yaya_memory.h"
 #   define memory_req(ptr, count, size)                        memory_req  (         (void**)(ptr), (size_t)(count), (size_t)(size))
 #   define memory_ret(ptr)                                     memory_ret  (         (void**)(ptr))
-#   define memory_req_s(stats, ptr, count, size)               memory_req_s((stats), (void**)(ptr), (size_t)(count), (size_t)(size))
-#   define memory_ret_s(stats, ptr)                            memory_ret_s((stats), (void**)(ptr))
 #else
+#   include "yaya_memory_stats.h"
+#   undef memory_req
+#   undef memory_ret
 #   if YAYA_MEMORY_STATS_LOCAL == 1
 #       define memory_req(stats, ptr, count, size)             memory_req_s((stats),              (void**)(ptr), (size_t)(count), (size_t)(size))
 #       define memory_ret(stats, ptr)                          memory_ret_s((stats),              (void**)(ptr))

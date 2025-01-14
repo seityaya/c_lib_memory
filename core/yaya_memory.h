@@ -3,14 +3,16 @@
 // Creation Date          : 2022.12
 // License Link           : https://spdx.org/licenses/LGPL-2.1-or-later.htmlater.html
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright © 2022-2024 Seityagiya Terlekchi. All rights reserved.
+// Copyright © 2022-2025 Seityagiya Terlekchi. All rights reserved.
 
 #ifndef YAYA_MEMORY_H
 #define YAYA_MEMORY_H
 
+#include "stdalign.h"
 #include "stdbool.h"
 #include "stddef.h"
-#include "stdalign.h"
+#include "stdint.h"
+#include "stdio.h"
 
 /**
  * Очищать область памяти перед освобождением
@@ -31,23 +33,45 @@
 /**
  * Специальное значение для заполнения за пределами запрошеной области
  */
+#if YAYA_MEMORY_FILL_AFTER_MEM
 #ifndef YAYA_MEMORY_VALUE_AFTER_MEM
-#   define YAYA_MEMORY_VALUE_AFTER_MEM  0x00
+#   define YAYA_MEMORY_VALUE_AFTER_MEM 0x00
 #endif /*YAYA_MEMORY_VALUE_AFTER_MEM*/
+#endif
+
+/**
+ * Использовать начальную канарейку
+ */
+#ifndef YAYA_MEMORY_USING_CANARY_BEG
+#   define YAYA_MEMORY_USING_CANARY_BEG 1
+#endif /*YAYA_MEMORY_USING_CANARY_BEG*/
+
+/**
+ * Использовать конечную канарейку
+ */
+#ifndef YAYA_MEMORY_USING_CANARY_END
+#   define YAYA_MEMORY_USING_CANARY_END 0 /*TODO*/
+#endif /*YAYA_MEMORY_USING_CANARY_END*/
 
 /**
  * Специальное значение для определения начала структуры
  */
+#if YAYA_MEMORY_USING_CANARY_BEG || YAYA_MEMORY_USING_CANARY_END
 #ifndef YAYA_MEMORY_VALUE_CANARY
 #   define YAYA_MEMORY_VALUE_CANARY     0x7968574635241320
 #endif /*YAYA_MEMORY_VALUE_CANARY*/
+#endif
 
 typedef struct memory_t {
+#if YAYA_MEMORY_USING_CANARY_BEG
     size_t memory_canary_beg;               // начальная канарейка
+#endif
     size_t memory_request;                  // запросили
     size_t memory_produce;                  // выдали
     alignas(max_align_t) char memory_ptr[]; // указатель на начало
-/*  size_t memory_canary_end;               // коечная канарейка */ //TODO
+#if YAYA_MEMORY_USING_CANARY_END
+//  size_t memory_canary_end;               // конечная канарейка /*TODO*/
+#endif
 } memory_t;
 
 typedef int  (*memory_func_comp_t)(const void *, const void *);
@@ -71,52 +95,5 @@ bool    memory_rsearch(void **search_res, void *key, void *base, size_t count, s
 bool    memory_look(FILE* out, void *ptr, size_t struct_count, size_t struct_size, int64_t bit_len_list[]);
 
 #define memory_bit_len_list(...) (int64_t[]){__VA_ARGS__, 0}
-
-/*==================================================================================================================================================*/
-
-/**
- * Включить подсчет статистики использования памяти
- */
-#ifndef YAYA_MEMORY_STATS_LOCAL
-#   define YAYA_MEMORY_STATS_LOCAL       0
-#endif /*YAYA_MEMORY_STATS_USE*/
-
-/**
- * Для подсчета статистики использовать глобальную переменную
- */
-#ifndef YAYA_MEMORY_STATS_GLOBAL
-#    define YAYA_MEMORY_STATS_GLOBAL     0
-#endif /*YAYA_MEMORY_STATS_GLOBAL*/
-
-#if YAYA_MEMORY_STATS_LOCAL == 1 && YAYA_MEMORY_STATS_GLOBAL == 1
-#error YAYA_MEMORY_STATS_LOCAL == 1 or YAYA_MEMORY_STATS_GLOBAL == 1
-#endif
-
-typedef struct memory_stats {
-    size_t memory_request;  // запросил
-    size_t memory_produce;  // выдали
-    size_t memory_release;  // освободил
-    size_t memory_call_new; // фактически выдано
-    size_t memory_call_res; // фактически перераспределено
-    size_t memory_call_del; // фактически удалено
-} memory_stats_t;
-
-bool memory_stats_init(memory_stats_t **mem_stats);
-bool memory_stats_free(memory_stats_t **mem_stats);
-bool memory_stats_out (memory_stats_t *mem_stats, FILE *out);
-
-bool memory_req_s(memory_stats_t *mem_stats, void **ptr, size_t count, size_t size);
-bool memory_ret_s(memory_stats_t *mem_stats, void **ptr);
-
-#if YAYA_MEMORY_STATS_GLOBAL == 1
-extern memory_stats_t memory_stats_global;
-
-#define memory_stats_init()                    (true)
-#define memory_stats_free()                    (true)
-#define memory_stats_out(out)                  memory_stats_out(&memory_stats_global, out)
-
-#define memory_req(ptr, count, size)           memory_req_s(&memory_stats_global, ptr, count, size)
-#define memory_ret(ptr)                        memory_ret_s(&memory_stats_global, ptr)
-#endif
 
 #endif /*YAYA_MEMORY_H*/

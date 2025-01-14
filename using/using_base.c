@@ -3,7 +3,7 @@
 // Creation Date          : 2024.10
 // License Link           : https://spdx.org/licenses/LGPL-2.1-or-later.htmlater.html
 // SPDX-License-Identifier: LGPL-2.1-or-later
-// Copyright © 2024-2024 Seityagiya Terlekchi. All rights reserved.
+// Copyright © 2024-2025 Seityagiya Terlekchi. All rights reserved.
 
 #include "yaya_memory_wrapper.h"
 
