@@ -50,7 +50,7 @@
  * Использовать конечную канарейку
  */
 #ifndef YAYA_MEMORY_USING_CANARY_END
-#   define YAYA_MEMORY_USING_CANARY_END 1 /*TODO*/
+#   define YAYA_MEMORY_USING_CANARY_END 1
 #endif /*YAYA_MEMORY_USING_CANARY_END*/
 
 /**
@@ -74,7 +74,7 @@ typedef struct memory_t {
     size_t memory_produce;                  // выдали
     alignas(max_align_t) char memory_ptr[]; // указатель на начало
 #if YAYA_MEMORY_USING_CANARY_END
-//  memory_canary_t memory_canary_end;      // конечная канарейка /*TODO*/
+//  memory_canary_t memory_canary_end;      // конечная канарейка
 #endif
 } memory_t;
 
