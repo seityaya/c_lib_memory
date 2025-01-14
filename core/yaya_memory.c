@@ -37,8 +37,16 @@ bool memory_req(void **ptr, size_t count, size_t size) {
 
     /*Если память не инициализированна, то указатель на предыдущую память NULL*/
     if (*ptr == NULL) {
+        /*Вычисление размера необходимой памяти*/
+        size_t new_size = 0;
+        new_size += new_size_request;
+        new_size += offsetof(memory_t, memory_ptr);
+#if YAYA_MEMORY_USING_CANARY_END == 1
+        new_size += sizeof(memory_canary_t);
+#endif
+
         /*Выделение памяти на хранение информации и указателя*/
-        mem_new = calloc(1, new_size_request + offsetof(memory_t, memory_ptr));
+        mem_new = calloc(1, new_size);
 
         /*Проверка, что память выделилась*/
         if (mem_new == NULL) {
@@ -59,7 +67,12 @@ bool memory_req(void **ptr, size_t count, size_t size) {
 
 #if YAYA_MEMORY_USING_CANARY_BEG == 1
         /*Устанавливаем значение начальной канарейки*/
-        mem_new->memory_canary_beg  = YAYA_MEMORY_VALUE_CANARY;
+        mem_new->memory_canary_beg = YAYA_MEMORY_VALUE_CANARY;
+#endif
+#if YAYA_MEMORY_USING_CANARY_END == 1
+        /*Устанавливаем значение конечной канарейки*/
+        memory_canary_t *canary_end = (memory_canary_t *)(&mem_new->memory_ptr[mem_new->memory_request]);
+        *canary_end          = YAYA_MEMORY_VALUE_CANARY;
 #endif
 
         /*Возвращение указателя на память для пользователя*/
@@ -78,12 +91,27 @@ bool memory_req(void **ptr, size_t count, size_t size) {
             return false;
         }
 #endif
+#if YAYA_MEMORY_USING_CANARY_END == 1
+        /*Проверяем корректность структуры*/
+        memory_canary_t *canary_end = (memory_canary_t *)(&mem_old->memory_ptr[mem_old->memory_request]);
+        if (*canary_end != YAYA_MEMORY_VALUE_CANARY) {
+            return false;
+        }
+#endif
 
         /*Запоминаем сколько было выделено*/
         size_t old_size_request = mem_old->memory_request;
 
+        /*Вычисление размера необходимой памяти*/
+        size_t new_size = 0;
+        new_size += new_size_request;
+        new_size += offsetof(memory_t, memory_ptr);
+#if YAYA_MEMORY_USING_CANARY_END == 1
+        new_size += sizeof(memory_canary_t);
+#endif
+
         /*Перераспределяем память*/
-        mem_new = realloc(mem_old, new_size_request + offsetof(memory_t, memory_ptr));
+        mem_new = realloc(mem_old, new_size);
 
         /*Проверка, что память выделилась*/
         if (mem_new == NULL) {
@@ -111,6 +139,12 @@ bool memory_req(void **ptr, size_t count, size_t size) {
         /*Сохранение информации о количестве запрощеной памяти*/
         mem_new->memory_request = new_size_request;
         mem_new->memory_produce = produce;
+
+#if YAYA_MEMORY_USING_CANARY_END == 1
+        /*Устанавливаем значение конечной канарейки*/
+        canary_end  = (memory_canary_t *)(&mem_new->memory_ptr[mem_new->memory_request]);
+        *canary_end = YAYA_MEMORY_VALUE_CANARY;
+#endif
 
         /*Возвращение указателя на память для пользователя*/
         *ptr = mem_new->memory_ptr;
@@ -165,17 +199,18 @@ bool memory_chk(void *ptr) {
     mem_info = (memory_t*)((char*)(ptr) - offsetof(memory_t, memory_ptr));
 
 #if YAYA_MEMORY_USING_CANARY_BEG == 1
-    /*Проверяем корректность структуры*/
+    /*Проверяем корректность памяти по начальной канарейке*/
     if (mem_info->memory_canary_beg != YAYA_MEMORY_VALUE_CANARY) {
         return false;
     }
 #endif
-
-    //    /*Проверяем корректность структуры*/
-    //    if (mem_info->memory_canary_end != YAYA_MEMORY_VALUE_CANARY) {
-    //        return false;
-    //    }
-
+#if YAYA_MEMORY_USING_CANARY_END == 1
+    /*Проверяем корректность памяти по конечной канарейке*/
+    memory_canary_t *canary_end = (memory_canary_t *)(&mem_info->memory_ptr[mem_info->memory_request]);
+    if (*canary_end != YAYA_MEMORY_VALUE_CANARY) {
+        return false;
+    }
+#endif
     return true;
 }
 

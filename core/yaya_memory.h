@@ -50,7 +50,7 @@
  * Использовать конечную канарейку
  */
 #ifndef YAYA_MEMORY_USING_CANARY_END
-#   define YAYA_MEMORY_USING_CANARY_END 0 /*TODO*/
+#   define YAYA_MEMORY_USING_CANARY_END 1 /*TODO*/
 #endif /*YAYA_MEMORY_USING_CANARY_END*/
 
 /**
@@ -62,15 +62,19 @@
 #endif /*YAYA_MEMORY_VALUE_CANARY*/
 #endif
 
+#if YAYA_MEMORY_USING_CANARY_BEG || YAYA_MEMORY_USING_CANARY_END
+typedef size_t memory_canary_t;
+#endif
+
 typedef struct memory_t {
 #if YAYA_MEMORY_USING_CANARY_BEG
-    size_t memory_canary_beg;               // начальная канарейка
+    memory_canary_t memory_canary_beg;      // начальная канарейка
 #endif
     size_t memory_request;                  // запросили
     size_t memory_produce;                  // выдали
     alignas(max_align_t) char memory_ptr[]; // указатель на начало
 #if YAYA_MEMORY_USING_CANARY_END
-//  size_t memory_canary_end;               // конечная канарейка /*TODO*/
+//  memory_canary_t memory_canary_end;      // конечная канарейка /*TODO*/
 #endif
 } memory_t;
 
