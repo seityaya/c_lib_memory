@@ -249,30 +249,30 @@ void test_param(void) {
     fflush(stdout);
 }
 
-static bool test_memory_fill(void *ptr) {
-    /*Проверка, что указатель не NULL*/
-    if (ptr == NULL) {
-        printf("ERROR *POINTER\n");
-        fflush(stdout);
-        return false;
-    }
+// static bool test_memory_fill(void *ptr) {
+//     /*Проверка, что указатель не NULL*/
+//     if (ptr == NULL) {
+//         printf("ERROR *POINTER\n");
+//         fflush(stdout);
+//         return false;
+//     }
 
-    /*Указатели под структуру памяти*/
-    memory_t *mem = NULL;
+//     /*Указатели под структуру памяти*/
+//     memory_t *mem = NULL;
 
-    /*Помещаем указатель со смещением*/
-    mem = (memory_t *)((char *)(ptr)-offsetof(memory_t, memory_ptr));
+//     /*Помещаем указатель со смещением*/
+//     mem = (memory_t *)((char *)(ptr)-offsetof(memory_t, memory_ptr));
 
-    size_t produce = malloc_usable_size(mem);
+//     size_t produce = malloc_usable_size(mem);
 
-    /*Заполнение памяти*/
-    memset(mem->memory_ptr, 0x11, produce - offsetof(memory_t, memory_ptr));
-    memset(mem->memory_ptr, 0xff, 1);
-    memset(&mem->memory_ptr[mem->memory_request - 1], 0xff, 1);
-    memset(&mem->memory_ptr[mem->memory_request], 0x88, produce - mem->memory_request - offsetof(memory_t, memory_ptr));
+//     /*Заполнение памяти*/
+//     memset(mem->memory_ptr, 0x11, produce - offsetof(memory_t, memory_ptr));
+//     memset(mem->memory_ptr, 0xff, 1);
+//     memset(&mem->memory_ptr[mem->memory_request - 1], 0xff, 1);
+//     memset(&mem->memory_ptr[mem->memory_request], 0x88, produce - mem->memory_request - offsetof(memory_t, memory_ptr));
 
-    return true;
-}
+//     return true;
+// }
 
 void test_dump(void) {
     printf("test_dump\n");
@@ -288,23 +288,23 @@ void test_dump(void) {
     memory_req(&ptr, 99, sizeof(char));
     memory_dump(stdout, ptr, 0, 1, 16);
 
-    test_memory_fill(ptr);
+    memory_fill(ptr, 0x99);
     memory_dump(stdout, ptr, 0, 1, 16);
 
     memory_req(&ptr, 35, sizeof(char));
     memory_dump(stdout, ptr, 0, 1, 16);
 
-    test_memory_fill(ptr);
+    memory_fill(ptr, 0x35);
     memory_dump(stdout, ptr, 0, 1, 16);
 
     printf("\n");
 
     memory_req(&ptr, 33, sizeof(char));
-    test_memory_fill(ptr);
+    memory_fill(ptr, 0x33);
 
     memory_dump(stdout, ptr, 0, 1, 4);
     memory_dump(stdout, ptr, 0, 4, 2);
-    memory_dump(stdout, ptr, 0, 4, 2);
+    memory_dump(stdout, ptr, 0, 8, 2);
     memory_dump(stdout, ptr, 0, 1, 8);
     memory_dump(stdout, ptr, 0, 1, 16);
     memory_dump(stdout, ptr, 0, 1, 32);
